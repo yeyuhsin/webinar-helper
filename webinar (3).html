@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WEBINAR 加速小幫手 | 智慧規格解析與 Canva 簡報引擎</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter + JetBrains Mono + Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- PDF.js 3.11.174 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PptxGenJS 3.12.0 -->
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <!-- JSZip 3.10.1 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '"Noto Sans TC"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            ice: '#F8FAFC',
+            slateInk: '#0F172A',
+            slateMuted: '#64748B',
+            techBlue: '#2563EB',
+            techCyan: '#0891B2',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #F8FAFC;
+      color: #0F172A;
+      background-image:
+        radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(8, 145, 178, 0.06) 0px, transparent 50%),
+        linear-gradient(to right, rgba(226, 232, 240, 0.55) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(226, 232, 240, 0.55) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      border: 1px solid #DCE6F2;
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.02);
+    }
+    .tech-glow {
+      box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.22);
+    }
+    .tech-glow:hover:not(:disabled) {
+      box-shadow: 0 6px 20px rgba(8, 145, 178, 0.32);
+    }
+    .drop-active {
+      border-color: #2563EB !important;
+      background-color: rgba(37, 99, 235, 0.04) !important;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 2.5px solid rgba(37, 99, 235, 0.15);
+      border-top-color: #2563EB;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.75s linear infinite;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900">
+
+  <!-- Optional API Key Modal -->
+  <div id="apiModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+          <h3 class="text-base font-bold text-slate-900">AI API 進階設定（選填）</h3>
+        </div>
+        <button id="btnCloseApiModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed mb-4">
+        系統內建 <strong>100% 離線本機解析引擎</strong>（免金鑰、零 403 錯誤）。若填入個人 Gemini API Key，將優先呼叫雲端模型生成；若遇網路逾時或額度限制，系統會<strong>自動無縫降級回離線引擎</strong>，絕不卡住。
+      </p>
+      <label class="block text-xs font-semibold text-slate-700 mb-1.5" for="customApiKeyInput">Gemini API Key（選填）</label>
+      <input id="customApiKeyInput" type="password" placeholder="AIzaSy..." class="w-full font-mono text-xs rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white mb-4" />
+      <div class="flex items-center justify-end gap-2">
+        <button id="btnClearApiKey" type="button" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50">清除並使用離線引擎</button>
+        <button id="btnSaveApiKey" type="button" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">儲存設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 max-w-md transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="glass-card border-l-4 border-l-blue-600 rounded-xl p-4 shadow-xl flex items-start gap-3">
+      <div id="toastIcon" class="mt-0.5 text-blue-600 shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="flex-1 text-sm">
+        <p id="toastTitle" class="font-semibold text-slate-900">提示訊息</p>
+        <p id="toastBody" class="text-slate-600 mt-0.5 leading-relaxed"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Header -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#0891B2] flex items-center justify-center text-white shadow-sm shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-slate-900">WEBINAR 加速小幫手</h1>
+            <span class="hidden md:inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="engineBadgeText">離線解析引擎已就緒（免 API・自動降級保護）</span>
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">上傳產品 Datasheet → 智慧規格萃取 → 3 個高轉換主題 → 10 頁雙語大綱、PPTX 與 Canva 連動</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnLoadSampleTop" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition-all">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span>載入範例 Datasheet</span>
+        </button>
+        <button id="btnOpenApiModal" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition-all">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>AI API 設定</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 pb-20">
+
+    <!-- 5-Step Interactive Progress Stepper -->
+    <nav aria-label="Progress" class="glass-card rounded-2xl p-3 sm:p-4">
+      <ol class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <li>
+          <button type="button" data-step="1" class="step-btn w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all border border-blue-500/40 bg-blue-50/70 text-blue-700">
+            <span class="step-num font-mono text-xs font-bold w-6 h-6 rounded-lg flex items-center justify-center bg-[#2563EB] text-white shrink-0">1</span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold truncate">上傳 Datasheet</div>
+              <div class="text-[11px] opacity-75 truncate">PDF / 圖片 / 文字</div>
+            </div>
+          </button>
+        </li>
+        <li>
+          <button type="button" data-step="2" disabled class="step-btn w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all border border-transparent text-slate-400 disabled:cursor-not-allowed">
+            <span class="step-num font-mono text-xs font-bold w-6 h-6 rounded-lg flex items-center justify-center bg-slate-200 text-slate-500 shrink-0">2</span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold truncate">選擇主題</div>
+              <div class="text-[11px] opacity-75 truncate">3 大高轉換切角</div>
+            </div>
+          </button>
+        </li>
+        <li>
+          <button type="button" data-step="3" disabled class="step-btn w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all border border-transparent text-slate-400 disabled:cursor-not-allowed">
+            <span class="step-num font-mono text-xs font-bold w-6 h-6 rounded-lg flex items-center justify-center bg-slate-200 text-slate-500 shrink-0">3</span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold truncate">簡報大綱</div>
+              <div class="text-[11px] opacity-75 truncate">10 頁結構化腳本</div>
+            </div>
+          </button>
+        </li>
+        <li>
+          <button type="button" data-step="4" disabled class="step-btn w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all border border-transparent text-slate-400 disabled:cursor-not-allowed">
+            <span class="step-num font-mono text-xs font-bold w-6 h-6 rounded-lg flex items-center justify-center bg-slate-200 text-slate-500 shrink-0">4</span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold truncate">PPT（英／德）</div>
+              <div class="text-[11px] opacity-75 truncate">Canva 連動匯出</div>
+            </div>
+          </button>
+        </li>
+        <li class="col-span-2 sm:col-span-1">
+          <button type="button" data-step="5" disabled class="step-btn w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all border border-transparent text-slate-400 disabled:cursor-not-allowed">
+            <span class="step-num font-mono text-xs font-bold w-6 h-6 rounded-lg flex items-center justify-center bg-slate-200 text-slate-500 shrink-0">5</span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold truncate">旁白 SRT</div>
+              <div class="text-[11px] opacity-75 truncate">雙語時間軸字幕</div>
+            </div>
+          </button>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- STEP 1: Upload Datasheet & Local Parsing -->
+    <section id="sec-1" class="glass-card rounded-2xl p-6 sm:p-7 transition-all">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div>
+          <span class="font-mono text-xs font-semibold text-[#2563EB] uppercase tracking-wider">STEP 01 // DATASHEET SPEC PARSER</span>
+          <h2 class="text-xl font-bold text-slate-900 mt-0.5">上傳產品 Datasheet 與智慧規格萃取</h2>
+        </div>
+        <button id="btnLoadSampleCard" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all">
+          <span>載入工業電源模組範例 Datasheet</span>
+        </button>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div id="dropZone" class="group relative border-2 border-dashed border-slate-300 hover:border-[#2563EB] rounded-2xl p-7 text-center cursor-pointer transition-all bg-slate-50/70 hover:bg-blue-50/30">
+        <input type="file" id="fileInput" accept=".pdf,image/png,image/jpeg,image/webp,.txt,.md,.csv" multiple class="hidden" />
+        <div class="w-12 h-12 mx-auto rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-[#2563EB] group-hover:scale-105 transition-transform">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+        </div>
+        <p class="mt-3 text-sm font-semibold text-slate-800">點擊或拖曳檔案至此處上傳（支援多檔同時解析）</p>
+        <p class="mt-1 text-xs text-slate-500">支援 <span class="font-mono text-slate-700">.pdf</span>（逐頁萃取文字與頁碼）、<span class="font-mono text-slate-700">.txt / .md / .csv</span>、<span class="font-mono text-slate-700">.png / .jpg / .webp</span>（預覽圖表並補充說明）</p>
+      </div>
+
+      <!-- Uploaded File Chips -->
+      <div id="fileChips" class="flex flex-wrap gap-2 mt-3"></div>
+
+      <!-- Uploaded Image Thumbnails & Manual Spec Notes -->
+      <div id="imagePreviewGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4"></div>
+
+      <!-- Direct Paste Textarea -->
+      <div class="mt-5">
+        <label for="pasteInput" class="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
+          <span>Datasheet 規格文字區（可直接貼上規格書內容，或由上方 PDF 自動匯入）</span>
+          <span class="font-mono text-slate-400 font-normal">PAGE MARKERS [Page X] SUPPORTED</span>
+        </label>
+        <textarea id="pasteInput" rows="5" placeholder="貼上產品型號、電氣規格（V, A, W, °C, %）、尺寸重量、安規認證（UL, CE, IEC, IP67）或主要特色..." class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-xs text-slate-800 placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-[#2563EB] transition-all"></textarea>
+      </div>
+
+      <!-- Extracted Specs Live Summary Card -->
+      <div id="extractedSpecsCard" class="hidden mt-5 rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-50/60 via-white to-cyan-50/40 p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#2563EB] text-white">EXTRACTED SPECS</span>
+            <h3 class="text-sm font-bold text-slate-900">萃取規格摘要卡（嚴格引用原始數據與頁碼）</h3>
+          </div>
+          <span id="detectedModelBadge" class="font-mono text-xs font-bold text-blue-800 bg-blue-100/80 px-2.5 py-1 rounded-lg"></span>
+        </div>
+        <div id="extractedSpecsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs"></div>
+      </div>
+
+      <!-- Action Row -->
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
+        <div id="status1" class="text-sm text-slate-600 flex items-center gap-2"></div>
+        <button id="btnGenTopics" type="button" class="tech-glow inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span>智慧解析並產生三個主題</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 2: Select Webinar Topic -->
+    <section id="sec-2" class="hidden glass-card rounded-2xl p-6 sm:p-7 transition-all">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div>
+          <span class="font-mono text-xs font-semibold text-[#0891B2] uppercase tracking-wider">STEP 02 // STRATEGY ANGLES</span>
+          <h2 class="text-xl font-bold text-slate-900 mt-0.5">選擇 YouTube Webinar 企劃主題</h2>
+        </div>
+        <div id="productBadge" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-800 text-xs font-semibold">
+          <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+          <span id="productNameText">識別產品中...</span>
+        </div>
+      </div>
+
+      <p class="text-sm text-slate-600 mb-4">已嚴格依據 Datasheet 事實為您規劃三種不同行銷切角，請點擊一張卡片以生成 10 頁簡報大綱：</p>
+
+      <!-- High-Visibility Dynamic Progress Panel for Step 2 -> Step 3 -->
+      <div id="outlineProgressPanel" class="hidden mb-5 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 sm:p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <div class="flex items-center gap-2.5">
+            <span class="spinner"></span>
+            <span id="outlineProgressStage" class="text-sm font-bold text-blue-900">[1/4] 正在鎖定選定切角與產品參數...</span>
+          </div>
+          <span id="outlineProgressPercent" class="font-mono text-xs font-bold text-[#2563EB] bg-blue-100 px-2.5 py-0.5 rounded-full">25%</span>
+        </div>
+        <div class="w-full h-2.5 bg-slate-200/80 rounded-full overflow-hidden">
+          <div id="outlineProgressBar" class="h-full bg-gradient-to-r from-[#2563EB] to-[#0891B2] rounded-full transition-all duration-300" style="width: 25%"></div>
+        </div>
+        <p id="outlineProgressSub" class="text-xs text-slate-500 mt-2">正在比對規格書原始數據與頁碼來源，確保 100% 準確無誤...</p>
+      </div>
+
+      <!-- 3 Topic Cards Grid -->
+      <div id="topicsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
+        <div id="status2" class="text-sm text-slate-600 flex items-center gap-2"></div>
+        <button id="btnRedoTopics" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm transition-all disabled:opacity-50">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span>重新產生主題</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 3: 10-Slide Outline -->
+    <section id="sec-3" class="hidden glass-card rounded-2xl p-6 sm:p-7 transition-all">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+        <div>
+          <span class="font-mono text-xs font-semibold text-[#2563EB] uppercase tracking-wider">STEP 03 // 10-SLIDE DECK BLUEPRINT</span>
+          <h2 id="chosenTitleDisplay" class="text-xl font-bold text-slate-900 mt-0.5">簡報大綱</h2>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnCopyOutline" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-medium text-xs sm:text-sm shadow-sm transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            <span>一鍵複製大綱</span>
+          </button>
+          <button id="btnDlOutline" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-all">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>下載大綱 (.txt)</span>
+          </button>
+          <button id="btnBackTopics" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-medium text-xs sm:text-sm transition-all">
+            <span>切換主題</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Slides List -->
+      <div id="slidesContainer" class="space-y-3"></div>
+
+      <!-- Raw Text Collapsible -->
+      <details class="mt-5 group rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+        <summary class="cursor-pointer text-xs font-semibold text-slate-600 flex items-center justify-between select-none">
+          <span>檢視純文字格式（適用 Canva Docs-to-Deck / Magic Design 貼上）</span>
+          <span class="font-mono text-[11px] text-[#2563EB]">RAW TEXT ▾</span>
+        </summary>
+        <textarea id="rawOutlineText" readonly rows="8" class="mt-3 w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 focus:outline-none"></textarea>
+      </details>
+    </section>
+
+    <!-- STEP 4: Canva Integration & Editable PPTX Export -->
+    <section id="sec-4" class="hidden glass-card rounded-2xl p-6 sm:p-7 transition-all">
+      <div class="mb-5">
+        <span class="font-mono text-xs font-semibold text-[#0891B2] uppercase tracking-wider">STEP 04 // CANVA SYNC & PPTX EXPORT</span>
+        <h2 class="text-xl font-bold text-slate-900 mt-0.5">連動 Canva 生成簡報與雙語 PPTX 匯出</h2>
+        <p class="text-sm text-slate-600 mt-1">支援一鍵複製結構化 Canva Magic Design 指令並開啟 Canva 建立簡報，或直接匯出 16:9 英／德雙語可編輯 PowerPoint 檔案。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Panel A: Canva Magic Design Sync -->
+        <div class="rounded-2xl border border-cyan-200/80 bg-gradient-to-br from-cyan-50/50 via-white to-blue-50/40 p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-[#0891B2] bg-cyan-100/80 px-2.5 py-1 rounded-lg">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                CANVA MAGIC DESIGN 連動
+              </span>
+            </div>
+            <h3 class="text-base font-bold text-slate-900">一鍵複製指令並開啟 Canva</h3>
+            <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              點擊下方按鈕將自動複製最佳化 10 頁結構化簡報指令（德文版將自動轉換為專業工業德語），並顯示操作指引與開啟 Canva 簡報建立頁面。
+            </p>
+          </div>
+
+          <div class="mt-5 space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button id="btnCanvaEN" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0891B2] to-[#2563EB] hover:opacity-95 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all">
+                <span>在 Canva 建立英文版</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              </button>
+              <button id="btnCanvaDE" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-white hover:bg-blue-50/70 text-blue-700 font-semibold text-xs sm:text-sm transition-all">
+                <span>在 Canva 建立德文版</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              </button>
+            </div>
+
+            <!-- Interactive Canva Quick-Guide Panel -->
+            <div id="canvaGuidePanel" class="hidden rounded-xl border border-emerald-200 bg-emerald-50/85 p-3.5 text-xs text-emerald-950 space-y-2">
+              <div class="font-bold text-emerald-800 flex items-center gap-1.5">
+                <span>✓ 已複製結構化簡報大綱指令！</span>
+              </div>
+              <p class="leading-relaxed text-emerald-900">
+                1. 在開啟的 Canva 頁面點擊<strong>「簡報 (16:9)」→「Magic Design」</strong>貼上即可一鍵生成。<br>
+                2. <strong>.pptx 匯入教學</strong>：也可直接下載右側 <span class="font-mono font-semibold">.pptx</span> 檔案，於 Canva 首頁點擊右上角<strong>「建立設計」→「匯入檔案」</strong>拖入即可完整保留 10 頁排版與講者備忘錄。
+              </p>
+              <div class="pt-1">
+                <a href="https://www.canva.com/create/presentations/" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold transition-all">
+                  <span>前往 Canva 建立簡報 (16:9)</span>
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel B: Editable PPTX Export -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-[#2563EB] bg-blue-50 px-2.5 py-1 rounded-lg">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                16:9 可編輯 PPTX 匯出
+              </span>
+            </div>
+            <h3 class="text-base font-bold text-slate-900">產生英／德雙語 PowerPoint 簡報</h3>
+            <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              若需 100% 保留精準架構，可先產生標準 <span class="font-mono">.pptx</span> 檔案，再於 Canva 首頁點擊<strong>「上傳 / 匯入檔案」</strong>直接拖入編輯，所有講者備忘錄與頁碼來源皆完整保留。
+            </p>
+          </div>
+
+          <div class="mt-5 space-y-2.5">
+            <button id="btnGenPptx" type="button" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm transition-all disabled:opacity-50">
+              <span>產生英文＋德文可編輯 PPTX</span>
+            </button>
+            <div id="pptxDownloadRow" class="hidden grid grid-cols-2 gap-2.5">
+              <button id="btnDlPptxEN" type="button" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-800 font-semibold text-xs transition-all">
+                <span>⬇ 下載英文版 .pptx</span>
+              </button>
+              <button id="btnDlPptxDE" type="button" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-cyan-200 bg-cyan-50/70 hover:bg-cyan-100 text-cyan-800 font-semibold text-xs transition-all">
+                <span>⬇ 下載德文版 .pptx</span>
+              </button>
+            </div>
+            <div id="statusPptx" class="text-xs text-slate-600 min-h-[18px] flex items-center gap-1.5"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5: Narration & SRT Subtitle Generator -->
+    <section id="sec-5" class="hidden glass-card rounded-2xl p-6 sm:p-7 transition-all">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+        <div>
+          <span class="font-mono text-xs font-semibold text-[#2563EB] uppercase tracking-wider">STEP 05 // MULTILINGUAL NARRATION & SRT</span>
+          <h2 class="text-xl font-bold text-slate-900 mt-0.5">多語系旁白與 SRT 字幕時間軸生成</h2>
+          <p class="text-sm text-slate-600 mt-1">依據簡報內容撰寫自然口語的英文旁白與專業德文翻譯，並依指定語速自動計算精準時間軸。</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+          <label for="wpmInput" class="text-xs font-semibold text-slate-700 flex items-center gap-2">
+            <span>語速 (WPM)</span>
+            <input id="wpmInput" type="number" value="140" min="90" max="220" class="w-20 font-mono text-center rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-500" />
+          </label>
+          <button id="btnGenSrt" type="button" class="tech-glow inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-semibold text-xs sm:text-sm transition-all disabled:opacity-50">
+            <span>產生英／德 SRT 字幕</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="statusSrt" class="text-sm text-slate-600 mb-3 flex items-center gap-2"></div>
+
+      <!-- SRT Output Area -->
+      <div id="srtResultArea" class="hidden space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80">
+          <div class="text-xs sm:text-sm text-blue-900 font-medium">
+            已完成英文與德文雙語 <span class="font-mono font-bold">.srt</span> 字幕時間軸排程！
+          </div>
+          <button id="btnDlSrtZip" type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>打包下載 webinar_narration_srt.zip</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- English SRT -->
+          <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-mono text-xs font-bold text-slate-800">ENGLISH_NARRATION.SRT</span>
+              <button id="btnCopySrtEN" type="button" class="text-xs font-semibold text-[#2563EB] hover:text-blue-800 px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-all">複製英文 SRT</button>
+            </div>
+            <textarea id="srtTextEN" readonly rows="9" class="w-full rounded-lg border border-slate-200 bg-slate-50/60 p-3 font-mono text-xs text-slate-800 leading-relaxed focus:outline-none"></textarea>
+          </div>
+
+          <!-- German SRT -->
+          <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-mono text-xs font-bold text-slate-800">GERMAN_NARRATION.SRT</span>
+              <button id="btnCopySrtDE" type="button" class="text-xs font-semibold text-[#0891B2] hover:text-cyan-800 px-2.5 py-1 rounded-lg hover:bg-cyan-50 transition-all">複製德文 SRT</button>
+            </div>
+            <textarea id="srtTextDE" readonly rows="9" class="w-full rounded-lg border border-slate-200 bg-slate-50/60 p-3 font-mono text-xs text-slate-800 leading-relaxed focus:outline-none"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Configure PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // Realistic Sample Datasheet for Instant Testing
+    const SAMPLE_DATASHEET = `[Page 1]
+DRP-480S-24 Industrial DIN-Rail Power Supply Series
+High-Efficiency 480W Single-Output AC/DC DIN-Rail Power Supply for Factory Automation & Edge Control
+
+Key Features:
+- Universal AC input 90~264VAC (127~370VDC) with active PFC > 0.95
+- High conversion efficiency up to 94.5% at 230VAC full load
+- Fanless natural convection cooling, wide operating temperature -30°C to +70°C
+- Built-in DC OK relay contact and LED status indicator for predictive maintenance
+- Slim 85.5mm metal enclosure saves critical DIN-rail cabinet space
+- 150% peak load capability for 3 seconds to start inductive motor loads
+
+[Page 2]
+Electrical & Mechanical Specifications
+- Rated Output Voltage: 24VDC (adjustable 24~28VDC)
+- Rated Output Current: 20A continuous (30A peak for 3s)
+- Rated Output Power: 480W
+- Switching Frequency: 100kHz fixed frequency
+- Ripple & Noise: < 120mVp-p
+- Protections: Short circuit, Overload (constant current limiting), Over voltage, Over temperature
+- Communication Interface: RS-485 Modbus RTU telemetry option (DRP-480S-24M)
+- Dimensions (W x H x D): 85.5mm x 125.2mm x 128.5mm, Weight: 1.45kg
+- Safety & EMC Standards: UL 508, IEC 62368-1, EN 55032 Class B, EN 61000-6-2, RoHS, IP20`;
+
+    // Application State
+    const state = {
+      files: [],               // { id, name, type: 'text'|'image', content, dataUrl, note }
+      extracted: null,         // Parsed specs object
+      product: '',
+      topics: [],
+      chosenTopic: null,
+      isGeneratingOutline: false,
+      slidesEN: [],
+      slidesDE: null,
+      outlineRaw: '',
+      pptxBlobs: null,         // { en: Blob, de: Blob }
+      srtData: null            // { en: string, de: string }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // HTML Escape
+    function esc(str) {
+      return String(str ?? '').replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    // Toast Notification
+    let toastTimer = null;
+    function showToast(title, body, isError = false) {
+      const toast = $('toast');
+      const card = toast.firstElementChild;
+      $('toastTitle').textContent = title;
+      $('toastBody').textContent = body;
+      card.classList.toggle('border-l-red-600', isError);
+      card.classList.toggle('border-l-blue-600', !isError);
+      $('toastIcon').className = isError ? 'mt-0.5 text-red-600 shrink-0' : 'mt-0.5 text-blue-600 shrink-0';
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 5500);
+    }
+
+    // Safe Clipboard Copy
+    async function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (_) {}
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch (_) {}
+      document.body.removeChild(ta);
+      return ok;
+    }
+
+    // Universal File Download Helper
+    function triggerDownloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    // Optional API Key Modal Controls
+    function getSavedApiKey() {
+      return (localStorage.getItem('webinar_custom_gemini_key') || '').trim();
+    }
+
+    function refreshEngineBadge() {
+      const savedKey = getSavedApiKey();
+      $('engineBadgeText').textContent = savedKey
+        ? '雲端 AI 優先＋離線自動降級保護'
+        : '離線解析引擎已就緒（免 API・自動降級保護）';
+    }
+    refreshEngineBadge();
+
+    $('btnOpenApiModal').addEventListener('click', () => {
+      $('customApiKeyInput').value = getSavedApiKey();
+      $('apiModal').classList.remove('hidden');
+    });
+    $('btnCloseApiModal').addEventListener('click', () => $('apiModal').classList.add('hidden'));
+    $('btnSaveApiKey').addEventListener('click', () => {
+      const val = $('customApiKeyInput').value.trim();
+      if (val) localStorage.setItem('webinar_custom_gemini_key', val);
+      else localStorage.removeItem('webinar_custom_gemini_key');
+      refreshEngineBadge();
+      $('apiModal').classList.add('hidden');
+      showToast('設定已更新', val ? '已儲存 Gemini API Key（若雲端連線異常將自動降級回離線引擎）。' : '已切換為 100% 離線解析引擎模式。');
+    });
+    $('btnClearApiKey').addEventListener('click', () => {
+      localStorage.removeItem('webinar_custom_gemini_key');
+      $('customApiKeyInput').value = '';
+      refreshEngineBadge();
+      $('apiModal').classList.add('hidden');
+      showToast('已清除金鑰', '目前已切換為 100% 離線解析引擎模式。');
+    });
+
+    // Optional Gemini API Call with Strict Timeout & Seamless Fallback
+    async function tryGeminiOutline(promptText, timeoutMs = 12000) {
+      const apiKey = getSavedApiKey();
+      if (!apiKey) return null;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: { responseMimeType: 'application/json', temperature: 0.3 }
+            })
+          }
+        );
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawJson) throw new Error('Empty AI payload');
+        return JSON.parse(rawJson);
+      } catch (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    }
+
+    // Load Sample Datasheet
+    function loadSampleDatasheet() {
+      $('pasteInput').value = SAMPLE_DATASHEET;
+      const specs = parseDatasheetLocally(SAMPLE_DATASHEET);
+      state.extracted = specs;
+      renderExtractedSpecs(specs);
+      showToast('已載入範例 Datasheet', `已自動萃取產品「${specs.product}」的電氣、尺寸與安規參數。`);
+    }
+    $('btnLoadSampleTop').addEventListener('click', loadSampleDatasheet);
+    $('btnLoadSampleCard').addEventListener('click', loadSampleDatasheet);
+
+    // Stepper & Section Visibility Controller
+    function updateStepper(activeStep) {
+      const btns = document.querySelectorAll('.step-btn');
+      btns.forEach((btn) => {
+        const s = Number(btn.dataset.step);
+        const numBadge = btn.querySelector('.step-num');
+        const unlocked =
+          s === 1 ||
+          (s === 2 && state.topics.length > 0) ||
+          (s >= 3 && state.slidesEN.length > 0);
+
+        btn.disabled = !unlocked;
+        btn.classList.remove(
+          'border-blue-500/40', 'bg-blue-50/70', 'text-blue-700',
+          'border-emerald-500/30', 'bg-emerald-50/50', 'text-emerald-700',
+          'border-transparent', 'text-slate-400', 'text-slate-600'
+        );
+        numBadge.classList.remove('bg-[#2563EB]', 'bg-emerald-600', 'bg-slate-200', 'text-white', 'text-slate-500');
+
+        if (s === activeStep) {
+          btn.classList.add('border-blue-500/40', 'bg-blue-50/70', 'text-blue-700');
+          numBadge.classList.add('bg-[#2563EB]', 'text-white');
+        } else if (unlocked && s < activeStep) {
+          btn.classList.add('border-emerald-500/30', 'bg-emerald-50/50', 'text-emerald-700');
+          numBadge.classList.add('bg-emerald-600', 'text-white');
+        } else if (unlocked) {
+          btn.classList.add('border-transparent', 'text-slate-600');
+          numBadge.classList.add('bg-slate-200', 'text-slate-700');
+        } else {
+          btn.classList.add('border-transparent', 'text-slate-400');
+          numBadge.classList.add('bg-slate-200', 'text-slate-500');
+        }
+      });
+
+      $('sec-2').classList.toggle('hidden', state.topics.length === 0);
+      const hasOutline = state.slidesEN.length > 0;
+      $('sec-3').classList.toggle('hidden', !hasOutline);
+      $('sec-4').classList.toggle('hidden', !hasOutline);
+      $('sec-5').classList.toggle('hidden', !hasOutline);
+    }
+
+    document.querySelectorAll('.step-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const s = Number(btn.dataset.step);
+        const target = $('sec-' + s);
+        if (target && !target.classList.contains('hidden')) {
+          updateStepper(s);
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // File Processing (PDF, Images, TXT/MD/CSV)
+    async function extractPdfText(file) {
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += `\n[Page ${i}]\n` + content.items.map((item) => item.str).join(' ');
+      }
+      return text;
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderFileChips() {
+      const container = $('fileChips');
+      const imgGrid = $('imagePreviewGrid');
+      if (!state.files.length) {
+        container.innerHTML = '';
+        imgGrid.classList.add('hidden');
+        imgGrid.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = state.files.map((f) => `
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium">
+          <span class="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded bg-white text-[#2563EB] border border-blue-200/70">${f.type === 'image' ? 'IMG' : 'DOC'}</span>
+          <span class="max-w-[200px] truncate">${esc(f.name)}</span>
+          <button type="button" data-remove="${f.id}" aria-label="移除檔案" class="text-blue-500 hover:text-red-600 font-bold text-sm leading-none ml-0.5">&times;</button>
+        </span>
+      `).join('');
+
+      container.querySelectorAll('button[data-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.remove;
+          state.files = state.files.filter((item) => item.id !== id);
+          renderFileChips();
+          triggerLiveSpecPreview();
+        });
+      });
+
+      const images = state.files.filter((f) => f.type === 'image');
+      if (images.length) {
+        imgGrid.classList.remove('hidden');
+        imgGrid.innerHTML = images.map((img) => `
+          <div class="rounded-xl border border-slate-200 bg-white p-3 flex gap-3 items-start">
+            <img src="${img.dataUrl}" alt="${esc(img.name)}" class="w-20 h-20 object-cover rounded-lg border border-slate-200 shrink-0 bg-slate-100" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold text-slate-800 truncate">${esc(img.name)}</div>
+              <p class="text-[11px] text-slate-500 mt-0.5">補充圖表關鍵規格（將自動納入萃取）：</p>
+              <input type="text" data-img-note="${img.id}" value="${esc(img.note || '')}" placeholder="例如：[Page 1] 效率 94.5%, 輸入 90~264VAC..." class="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#2563EB] focus:bg-white" />
+            </div>
+          </div>
+        `).join('');
+
+        imgGrid.querySelectorAll('input[data-img-note]').forEach((inp) => {
+          inp.addEventListener('input', (e) => {
+            const target = state.files.find((x) => x.id === e.target.dataset.imgNote);
+            if (target) {
+              target.note = e.target.value;
+              triggerLiveSpecPreview();
+            }
+          });
+        });
+      } else {
+        imgGrid.classList.add('hidden');
+        imgGrid.innerHTML = '';
+      }
+    }
+
+    async function handleFiles(fileList) {
+      $('status1').innerHTML = '<span class="spinner"></span><span>正在本機解析檔案內容...</span>';
+      for (const file of fileList) {
+        const id = Math.random().toString(36).slice(2, 10);
+        try {
+          if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+            const text = await extractPdfText(file);
+            if (text.replace(/\s|\[Page \d+\]/g, '').length < 25) {
+              showToast('掃描版 PDF 提醒', `「${file.name}」為純圖片掃描檔，請在下方文字區貼上規格或上傳截圖。`, true);
+              continue;
+            }
+            state.files.push({ id, name: file.name, type: 'text', content: `\n=== ${file.name} ===\n${text}` });
+          } else if (file.type.startsWith('image/')) {
+            const dataUrl = await fileToDataUrl(file);
+            const cleanTitle = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+            state.files.push({ id, name: file.name, type: 'image', dataUrl, note: cleanTitle });
+          } else {
+            const txt = await file.text();
+            state.files.push({ id, name: file.name, type: 'text', content: `\n=== ${file.name} ===\n${txt}` });
+          }
+        } catch (err) {
+          showToast('檔案讀取失敗', `無法處理「${file.name}」，請確認檔案是否損毀。`, true);
+        }
+      }
+      renderFileChips();
+      triggerLiveSpecPreview();
+      $('status1').textContent = state.files.length ? `已本機載入 ${state.files.length} 個檔案` : '';
+      $('fileInput').value = '';
+    }
+
+    const dropZone = $('dropZone');
+    dropZone.addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', (e) => handleFiles([...e.target.files]));
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-active'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-active'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drop-active');
+      if (e.dataTransfer?.files?.length) handleFiles([...e.dataTransfer.files]);
+    });
+
+    function getCombinedSourceText() {
+      const docTexts = state.files
+        .filter((f) => f.type === 'text')
+        .map((f) => f.content)
+        .join('\n');
+      const imgNotes = state.files
+        .filter((f) => f.type === 'image' && f.note && f.note.trim())
+        .map((f) => `[Image: ${f.name}] ${f.note.trim()}`)
+        .join('\n');
+      const pasted = $('pasteInput').value.trim();
+      return [docTexts, imgNotes, pasted].filter(Boolean).join('\n\n');
+    }
+
+    function triggerLiveSpecPreview() {
+      const raw = getCombinedSourceText();
+      if (raw.trim().length > 5) {
+        const specs = parseDatasheetLocally(raw);
+        state.extracted = specs;
+        renderExtractedSpecs(specs);
+      } else {
+        $('extractedSpecsCard').classList.add('hidden');
+      }
+    }
+
+    $('pasteInput').addEventListener('input', triggerLiveSpecPreview);
+
+    // =========================================================================
+    // 100% CLIENT-SIDE OFFLINE SPEC EXTRACTOR (REGEX & HEURISTIC ENGINE)
+    // =========================================================================
+    function parseDatasheetLocally(rawText) {
+      const pageSegments = [];
+      const pageRegex = /\[Page\s+(\d+)\]/gi;
+      let match;
+      const markers = [];
+      while ((match = pageRegex.exec(rawText)) !== null) {
+        markers.push({ page: `Page ${match[1]}`, index: match.index });
+      }
+
+      if (markers.length === 0) {
+        pageSegments.push({ page: 'Page 1', text: rawText });
+      } else {
+        if (markers[0].index > 0) {
+          pageSegments.push({ page: 'Page 1', text: rawText.slice(0, markers[0].index) });
+        }
+        for (let i = 0; i < markers.length; i++) {
+          const start = markers[i].index;
+          const end = i + 1 < markers.length ? markers[i + 1].index : rawText.length;
+          pageSegments.push({ page: markers[i].page, text: rawText.slice(start, end) });
+        }
+      }
+
+      function findMatches(regex, maxItems = 4) {
+        const found = [];
+        const seen = new Set();
+        for (const seg of pageSegments) {
+          const matches = seg.text.match(regex) || [];
+          for (const m of matches) {
+            const clean = m.replace(/\s+/g, ' ').trim();
+            const key = clean.toLowerCase();
+            if (!seen.has(key) && clean.length >= 2) {
+              seen.add(key);
+              found.push({ value: clean, page: seg.page });
+              if (found.length >= maxItems) return found;
+            }
+          }
+        }
+        return found;
+      }
+
+      const lines = rawText
+        .split(/\r?\n/)
+        .map((l) => l.replace(/\[Page\s+\d+\]|===.*?===/gi, '').trim())
+        .filter((l) => l.length >= 3);
+
+      let product = 'Industrial Electronic Module';
+      const modelCodeRegex = /\b[A-Z]{2,6}[-_][A-Z0-9]{2,8}(?:[-_][A-Z0-9]{1,6})?\b/;
+      for (const line of lines.slice(0, 12)) {
+        const m = line.match(modelCodeRegex);
+        if (m) {
+          product = line.length <= 52 ? line : m[0];
+          break;
+        }
+      }
+      if (product === 'Industrial Electronic Module' && lines[0]) {
+        product = lines[0].slice(0, 48);
+      }
+
+      const voltage = findMatches(/(?:\d+(?:\.\d+)?\s*[~–-]\s*)?\d+(?:\.\d+)?\s*(?:VAC|VDC|mV|kV|V)\b/g, 4);
+      const current = findMatches(/(?:\d+(?:\.\d+)?\s*[~–-]\s*)?\d+(?:\.\d+)?\s*(?:mA|A)\b/g, 3);
+      const power = findMatches(/\d+(?:\.\d+)?\s*(?:kW|mW|W)\b/g, 3);
+      const temperature = findMatches(/[+-]?\d+\s*°?\s*C\s*(?:to|~|–|-)\s*[+-]?\d+\s*°?\s*C/gi, 2);
+      const efficiency = findMatches(/\d{2}(?:\.\d+)?\s*%/g, 2);
+      const frequency = findMatches(/\d+(?:\.\d+)?\s*(?:GHz|MHz|kHz|Hz)\b/gi, 2);
+      const dimensions = findMatches(/\d+(?:\.\d+)?\s*(?:mm|cm)\s*(?:x\s*\d+(?:\.\d+)?\s*(?:mm|cm)){1,2}|\b\d+(?:\.\d+)?\s*(?:kg|g)\b/gi, 3);
+      const certifications = findMatches(/\b(?:UL\s*\d+|IEC\s*[\d-]+|EN\s*[\d-]+|ISO\s*\d+|IP\d{2}|CE|RoHS|FCC|EMC|CSA|TÜV)\b/g, 6);
+      const interfaces = findMatches(/\b(?:RS-?485|RS-?232|CAN\s*Bus|CAN|Modbus(?:\s*RTU|\s*TCP)?|Ethernet|PROFINET|EtherCAT|USB(?:\s*[23]\.\d)?|PCIe|I2C|SPI|GPIO)\b/gi, 5);
+
+      const features = [];
+      for (const seg of pageSegments) {
+        const segLines = seg.text.split(/\r?\n/);
+        for (const rawL of segLines) {
+          const trimmed = rawL.trim();
+          if (/^[-•*▪]\s+/.test(trimmed)) {
+            const cleanBullet = trimmed.replace(/^[-•*▪]\s+/, '').trim();
+            if (cleanBullet.length >= 10 && cleanBullet.length <= 130) {
+              features.push({ text: cleanBullet, page: seg.page });
+            }
+          }
+        }
+      }
+
+      return {
+        product,
+        voltage,
+        current,
+        power,
+        temperature,
+        efficiency,
+        frequency,
+        dimensions,
+        certifications,
+        interfaces,
+        features: features.slice(0, 8)
+      };
+    }
+
+    function formatSpecList(arr) {
+      if (!arr || !arr.length) return 'Not in datasheet';
+      return arr.map((x) => `${x.value} (${x.page})`).join(', ');
+    }
+
+    function renderExtractedSpecs(specs) {
+      $('extractedSpecsCard').classList.remove('hidden');
+      $('detectedModelBadge').textContent = `MODEL: ${specs.product}`;
+
+      const items = [
+        { label: 'Voltage / 電壓', val: formatSpecList(specs.voltage) },
+        { label: 'Power & Current / 功率電流', val: formatSpecList([...specs.power, ...specs.current].slice(0, 4)) },
+        { label: 'Temperature & Eff. / 溫寬效率', val: formatSpecList([...specs.temperature, ...specs.efficiency].slice(0, 3)) },
+        { label: 'Frequency & Size / 頻率尺寸', val: formatSpecList([...specs.frequency, ...specs.dimensions].slice(0, 3)) },
+        { label: 'Certifications / 安規認證', val: formatSpecList(specs.certifications) },
+        { label: 'Interfaces / 通訊介面', val: formatSpecList(specs.interfaces) }
+      ];
+
+      $('extractedSpecsGrid').innerHTML = items.map((it) => {
+        const missing = it.val === 'Not in datasheet';
+        return `
+          <div class="rounded-xl border border-slate-200/80 bg-white p-2.5">
+            <div class="font-mono text-[10px] font-semibold text-slate-500 uppercase">${esc(it.label)}</div>
+            <div class="font-mono text-xs mt-1 ${missing ? 'text-slate-400 italic' : 'text-slate-900 font-semibold'}">${esc(it.val)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // STEP 2: TOPIC GENERATOR (3 STRATEGIC ANGLES)
+    // =========================================================================
+    function generateTopicsOffline() {
+      const raw = getCombinedSourceText();
+      if (raw.trim().length < 5) {
+        showToast('尚未提供規格資料', '請先上傳 PDF／圖片／文字檔、貼上 Datasheet 內容，或點擊「載入範例 Datasheet」。', true);
+        return;
+      }
+
+      const specs = parseDatasheetLocally(raw);
+      state.extracted = specs;
+      state.product = specs.product;
+      renderExtractedSpecs(specs);
+
+      const shortModel = specs.product.split(/\s+/)[0] || specs.product;
+      const topPower = specs.power[0]?.value || specs.voltage[0]?.value || 'Industrial Grade';
+      const topTemp = specs.temperature[0]?.value || 'Harsh Environments';
+      const topCert = specs.certifications.slice(0, 2).map((c) => c.value).join(' & ') || 'Global Compliance';
+      const topIface = specs.interfaces[0]?.value || 'System Integration';
+
+      state.topics = [
+        {
+          angle_code: 'Pain Point',
+          angle_label: '痛點解決切角',
+          title_en: `Solving Thermal & Space Limits with ${shortModel}`.slice(0, 60),
+          summary_zh: `聚焦工程師在緊湊機櫃與嚴苛溫度（${topTemp}）下常遇到的散熱與穩定度瓶頸。`,
+          audience: '硬體研發工程師、機構熱流工程師、系統整合商 (SI)',
+          why: `直接引用規格書中的 ${topPower} 與 ${topTemp} 實測數據，精準打中現場停機與空間受限痛點。`,
+          minutes: 20
+        },
+        {
+          angle_code: 'Application',
+          angle_label: '應用場景切角',
+          title_en: `Deploying ${shortModel} in Smart Industrial Automation`.slice(0, 60),
+          summary_zh: `解析如何將 ${shortModel} 導入工業自動化產線與邊緣控制系統，提升整體系統稼動率。`,
+          audience: '自動化專案經理、工廠設備工程師、解決方案架構師',
+          why: `結合 ${topIface} 通訊介面與現場保護機制，展現從單機元件到整廠系統整合的實際價值。`,
+          minutes: 22
+        },
+        {
+          angle_code: 'Selection',
+          angle_label: '選型指南切角',
+          title_en: `${shortModel} Engineering Selection & ${topCert} Guide`.slice(0, 60),
+          summary_zh: `提供完整的電氣參數檢核表與 ${topCert} 安規選型指南，協助採購與工程團隊快速定案。`,
+          audience: '技術採購 (Technical Buyer)、安規工程師、專案負責人',
+          why: `將零散的規格表轉化為結構化選型決策樹，大幅縮短客戶評估與導入週期。`,
+          minutes: 18
+        }
+      ];
+
+      $('productNameText').textContent = `識別產品：${state.product}`;
+      renderTopicCards();
+      $('status1').innerHTML = '<span class="text-emerald-600 font-semibold">✓ 規格萃取與三大主題規劃完成</span>';
+      updateStepper(2);
+      $('sec-2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderTopicCards() {
+      const grid = $('topicsGrid');
+      const badgeColors = [
+        'bg-amber-50 text-amber-700 border-amber-200',
+        'bg-blue-50 text-blue-700 border-blue-200',
+        'bg-cyan-50 text-cyan-700 border-cyan-200'
+      ];
+
+      grid.innerHTML = state.topics.map((t, idx) => `
+        <article data-topic-idx="${idx}" class="topic-card group cursor-pointer rounded-2xl border border-slate-200 bg-white hover:border-[#2563EB] hover:shadow-md p-5 flex flex-col justify-between transition-all">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="font-mono text-[11px] font-bold px-2.5 py-1 rounded-lg border ${badgeColors[idx % 3]}">
+                0${idx + 1} // ${esc(t.angle_label)} (${esc(t.angle_code)})
+              </span>
+              <span class="font-mono text-xs text-slate-400">~${esc(t.minutes)} MIN</span>
+            </div>
+            <h3 class="text-base font-bold text-slate-900 group-hover:text-[#2563EB] transition-colors leading-snug">
+              ${esc(t.title_en)}
+            </h3>
+            <p class="mt-2.5 text-sm text-slate-700 leading-relaxed">
+              ${esc(t.summary_zh)}
+            </p>
+          </div>
+
+          <div class="mt-4 pt-3.5 border-t border-slate-100 space-y-1.5 text-xs text-slate-500">
+            <div><strong class="text-slate-700">目標觀眾：</strong>${esc(t.audience)}</div>
+            <div><strong class="text-slate-700">企劃亮點：</strong>${esc(t.why)}</div>
+            <div class="pt-2 flex items-center justify-end text-[#2563EB] font-semibold group-hover:translate-x-0.5 transition-transform">
+              <span>選擇此主題產生 10 頁大綱 →</span>
+            </div>
+          </div>
+        </article>
+      `).join('');
+
+      grid.querySelectorAll('.topic-card').forEach((card) => {
+        card.addEventListener('click', () => handleSelectTopic(Number(card.dataset.topicIdx)));
+      });
+    }
+
+    // =========================================================================
+    // STEP 3: 10-SLIDE OUTLINE BUILDER WITH VISIBLE PROGRESS & ERROR RECOVERY
+    // =========================================================================
+    function trimWords(str, maxWords = 14) {
+      const words = String(str || '').trim().split(/\s+/);
+      if (words.length <= maxWords) return words.join(' ');
+      return words.slice(0, maxWords).join(' ') + '...';
+    }
+
+    function setOutlineProgress(pct, stageText, subText) {
+      const panel = $('outlineProgressPanel');
+      panel.classList.remove('hidden');
+      $('outlineProgressBar').style.width = `${pct}%`;
+      $('outlineProgressPercent').textContent = `${pct}%`;
+      $('outlineProgressStage').textContent = stageText;
+      if (subText) $('outlineProgressSub').textContent = subText;
+    }
+
+    function buildOfflineTenSlides(topic, specs) {
+      const safeSpecs = specs || parseDatasheetLocally(getCombinedSourceText() || SAMPLE_DATASHEET);
+      const shortModel = (safeSpecs.product || 'Module').split(/\s+/)[0] || 'Module';
+
+      const vStr = safeSpecs.voltage.length ? safeSpecs.voltage.map((x) => x.value).join(', ') : 'Not in datasheet';
+      const vSrc = safeSpecs.voltage[0]?.page || 'Not in datasheet';
+      const pStr = [...safeSpecs.power, ...safeSpecs.current].length
+        ? [...safeSpecs.power, ...safeSpecs.current].map((x) => x.value).join(', ')
+        : 'Not in datasheet';
+      const pSrc = safeSpecs.power[0]?.page || safeSpecs.current[0]?.page || 'Not in datasheet';
+      const tStr = safeSpecs.temperature.length ? safeSpecs.temperature.map((x) => x.value).join(', ') : 'Not in datasheet';
+      const tSrc = safeSpecs.temperature[0]?.page || 'Not in datasheet';
+      const eStr = safeSpecs.efficiency.length ? safeSpecs.efficiency.map((x) => x.value).join(', ') : 'Not in datasheet';
+      const eSrc = safeSpecs.efficiency[0]?.page || 'Not in datasheet';
+      const dStr = safeSpecs.dimensions.length ? safeSpecs.dimensions.map((x) => x.value).join(', ') : 'Not in datasheet';
+      const dSrc = safeSpecs.dimensions[0]?.page || 'Not in datasheet';
+      const cStr = safeSpecs.certifications.length ? safeSpecs.certifications.map((x) => x.value).join(', ') : 'Not in datasheet';
+      const cSrc = safeSpecs.certifications[0]?.page || 'Not in datasheet';
+      const iStr = safeSpecs.interfaces.length ? safeSpecs.interfaces.map((x) => x.value).join(', ') : 'Not in datasheet';
+      const iSrc = safeSpecs.interfaces[0]?.page || 'Not in datasheet';
+
+      const f1 = safeSpecs.features[0] ? trimWords(safeSpecs.features[0].text, 14) : `Rated electrical profile: ${pStr}`;
+      const f1Src = safeSpecs.features[0]?.page || pSrc;
+      const f2 = safeSpecs.features[1] ? trimWords(safeSpecs.features[1].text, 14) : `Operating range: ${tStr}`;
+      const f2Src = safeSpecs.features[1]?.page || tSrc;
+      const f3 = safeSpecs.features[2] ? trimWords(safeSpecs.features[2].text, 14) : `Conversion efficiency: ${eStr}`;
+      const f3Src = safeSpecs.features[2]?.page || eSrc;
+      const f4 = safeSpecs.features[3] ? trimWords(safeSpecs.features[3].text, 14) : `Mechanical footprint: ${dStr}`;
+      const f4Src = safeSpecs.features[3]?.page || dSrc;
+
+      return [
+        {
+          n: 1,
+          title: topic.title_en,
+          bullets: [
+            `Product Focus: ${safeSpecs.product}`,
+            `Strategy Angle: ${topic.angle_code} Engineering Briefing`,
+            'Target Audience: System Integrators, Hardware Engineers & Technical Buyers'
+          ],
+          visual: `Hero 3D hardware render of ${shortModel} on a clean light-tech blueprint grid`,
+          note: `Welcome everyone to today's technical webinar featuring ${safeSpecs.product}, tailored for system integrators and hardware engineers.`,
+          source: 'Page 1'
+        },
+        {
+          n: 2,
+          title: 'Webinar Agenda & Key Objectives',
+          bullets: [
+            'Current industrial engineering bottlenecks and design constraints',
+            `${shortModel} architecture and verified datasheet performance`,
+            'Target deployment scenarios and interface integration',
+            'Parameter selection checklist and live Q&A'
+          ],
+          visual: 'Clean 4-step horizontal roadmap timeline with technical icons',
+          note: 'We will review real field bottlenecks, examine verified specifications from the datasheet, and walk through a practical selection checklist.',
+          source: 'Page 1'
+        },
+        {
+          n: 3,
+          title: 'Problem Background: Industrial System Constraints',
+          bullets: [
+            'Limited control cabinet space demanding compact hardware footprints',
+            'Thermal stress in unconditioned factory environments',
+            'Strict global safety and EMC compliance requirements',
+            'Need for predictable uptime and diagnostic telemetry'
+          ],
+          visual: 'Split comparison diagram: crowded legacy cabinet vs. streamlined compact layout',
+          note: 'Modern industrial control cabinets face tighter space budgets, higher ambient temperatures, and stricter global safety compliance requirements.',
+          source: 'Page 1'
+        },
+        {
+          n: 4,
+          title: `${shortModel} Architecture & Core Highlights`,
+          bullets: [
+            f1,
+            f2,
+            f3,
+            `Supported interfaces: ${iStr}`
+          ],
+          visual: `Annotated front and side hardware callout diagram of ${shortModel}`,
+          note: `Built to address these demands, ${shortModel} combines compact mechanical design with verified electrical performance directly documented in the datasheet.`,
+          source: f1Src
+        },
+        {
+          n: 5,
+          title: 'Electrical Performance & Efficiency Profile',
+          bullets: [
+            `Voltage ratings: ${vStr}`,
+            `Power & current capacity: ${pStr}`,
+            `Conversion efficiency: ${eStr}`,
+            'Stable output regulation under dynamic industrial load transients'
+          ],
+          visual: 'Conversion efficiency curve chart and load regulation waveform graph',
+          note: `Looking at electrical performance, the unit operates across ${vStr} while delivering ${pStr} with ${eStr} efficiency.`,
+          source: pSrc !== 'Not in datasheet' ? pSrc : vSrc
+        },
+        {
+          n: 6,
+          title: 'Thermal Reliability & Global Certifications',
+          bullets: [
+            `Operating temperature: ${tStr}`,
+            `Physical dimensions & weight: ${dStr}`,
+            `Certified standards: ${cStr}`,
+            f4
+          ],
+          visual: 'Thermal derating curve alongside global safety certification badges',
+          note: `For harsh environments, the hardware is rated for ${tStr} and carries verified compliance including ${cStr}.`,
+          source: cSrc !== 'Not in datasheet' ? cSrc : tSrc
+        },
+        {
+          n: 7,
+          title: 'Target Applications & System Integration',
+          bullets: [
+            'Factory automation and programmable logic control cabinets',
+            'Edge computing gateways and industrial telemetry nodes',
+            `Connectivity integration via ${iStr}`,
+            'Simplified installation and predictive field maintenance'
+          ],
+          visual: 'System block diagram showing field sensors, controller, and power/data bus',
+          note: `In real deployments, engineers integrate ${shortModel} into automation panels and edge nodes utilizing ${iStr} for streamlined system monitoring.`,
+          source: iSrc !== 'Not in datasheet' ? iSrc : 'Page 1'
+        },
+        {
+          n: 8,
+          title: 'Technical Specs & Selection Guide',
+          bullets: [
+            `Voltage / Power: ${vStr} | ${pStr}`,
+            `Thermal / Efficiency: ${tStr} | ${eStr}`,
+            `Dimensions / Standards: ${dStr} | ${cStr}`,
+            'Verify load margin, ambient temperature, and interface requirements'
+          ],
+          visual: 'Structured 2-column engineering specification & selection matrix table',
+          note: 'Use this datasheet parameter matrix during design-in to verify voltage margins, thermal derating, and required regulatory approvals.',
+          source: [vSrc, pSrc, cSrc].filter((x) => x !== 'Not in datasheet').join(', ') || 'Page 1'
+        },
+        {
+          n: 9,
+          title: 'Key Engineering Takeaways',
+          bullets: [
+            `${shortModel} delivers verified ${pStr} performance in ${dStr}`,
+            `Proven reliability across ${tStr} with ${cStr}`,
+            'Accelerates time-to-market with straightforward system integration'
+          ],
+          visual: '3-pillar summary card layout with bold specification callouts',
+          note: `To summarize, ${shortModel} reduces integration risk by combining verified ${pStr} output, ${tStr} thermal resilience, and global certifications.`,
+          source: 'Page 1'
+        },
+        {
+          n: 10,
+          title: 'Next Steps & Engineering Support (CTA)',
+          bullets: [
+            `Download full ${shortModel} datasheet and 3D CAD files`,
+            'Request evaluation samples for bench validation',
+            'Schedule a 1-on-1 architecture review with our FAE team'
+          ],
+          visual: 'QR code card, sample request CTA button, and FAE contact block',
+          note: 'Thank you for joining. Scan the QR code or contact our field application engineers to request evaluation units and full documentation.',
+          source: 'Page 1'
+        }
+      ];
+    }
+
+    async function handleSelectTopic(idx) {
+      if (state.isGeneratingOutline) return;
+      state.isGeneratingOutline = true;
+
+      const selected = state.topics[idx];
+      if (!selected) {
+        state.isGeneratingOutline = false;
+        return;
+      }
+      state.chosenTopic = selected;
+
+      // Visually lock and highlight cards immediately
+      document.querySelectorAll('.topic-card').forEach((c, i) => {
+        c.classList.toggle('ring-2', i === idx);
+        c.classList.toggle('ring-[#2563EB]', i === idx);
+        c.classList.toggle('bg-blue-50/40', i === idx);
+        c.classList.toggle('opacity-60', i !== idx);
+        c.style.pointerEvents = 'none';
+      });
+      $('btnRedoTopics').disabled = true;
+
+      try {
+        // Stage 1
+        setOutlineProgress(25, '[1/4] 正在鎖定選定切角與產品參數...', `已選定主題：「${selected.title_en}」`);
+        await delay(140);
+
+        // Stage 2
+        setOutlineProgress(50, '[2/4] 萃取規格書關鍵數據與頁碼標註...', '正在核對電壓、電流、功率、溫寬與安規認證頁碼...');
+        const specs = state.extracted || parseDatasheetLocally(getCombinedSourceText());
+        state.extracted = specs;
+        await delay(150);
+
+        // Stage 3: Check optional Gemini API Key, fallback seamlessly to Offline Engine
+        let slides = null;
+        if (getSavedApiKey()) {
+          setOutlineProgress(72, '[3/4] 呼叫雲端 AI 建構 10 頁 B2B 英文簡報結構...', '若雲端連線逾時或受限，系統將自動切換離線解析引擎...');
+          try {
+            const prompt = `Create a 10-slide B2B engineering webinar deck outline in English based strictly on this datasheet.
+Product: ${specs.product}
+Topic: ${selected.title_en} (${selected.angle_code})
+Datasheet:
+${getCombinedSourceText().slice(0, 18000)}
+
+Return JSON: {"slides":[{"n":1,"title":"","bullets":["..."],"visual":"","note":"","source":"Page X"}]}`;
+            const aiRes = await tryGeminiOutline(prompt, 10000);
+            if (aiRes && Array.isArray(aiRes.slides) && aiRes.slides.length >= 8) {
+              slides = aiRes.slides.slice(0, 10).map((item, k) => ({
+                n: k + 1,
+                title: item.title || `Slide ${k + 1}`,
+                bullets: Array.isArray(item.bullets) && item.bullets.length ? item.bullets : ['Verified datasheet specification'],
+                visual: item.visual || 'Technical diagram',
+                note: item.note || '',
+                source: item.source || 'Page 1'
+              }));
+            }
+          } catch (aiErr) {
+            showToast('已自動降級為離線引擎', `雲端 API 無法連線（${aiErr.message}），已無縫切換至本機解析引擎完成大綱。`);
+          }
+        }
+
+        if (!slides) {
+          setOutlineProgress(78, '[3/4] 建構 10 頁 B2B 英文簡報結構...', '套用 10 頁標準工業簡報架構（Cover → Agenda → Highlights → Specs → CTA）...');
+          await delay(150);
+          slides = buildOfflineTenSlides(selected, specs);
+        }
+
+        // Stage 4
+        setOutlineProgress(100, '[4/4] 同步生成講者備忘錄與視覺建議...', '正在渲染 10 頁簡報藍圖並解鎖 Canva / PPTX / SRT 工作區...');
+        await delay(140);
+
+        state.slidesEN = slides;
+        state.slidesDE = null;
+        state.pptxBlobs = null;
+        state.srtData = null;
+
+        // Reset downstream UI panels
+        $('pptxDownloadRow').classList.add('hidden');
+        $('statusPptx').textContent = '';
+        $('canvaGuidePanel').classList.add('hidden');
+        $('srtResultArea').classList.add('hidden');
+        $('statusSrt').textContent = '';
+
+        // Render Step 3 Outline
+        renderOutline();
+        $('status2').innerHTML = `<span class="text-emerald-600 font-semibold">✓ 已完成「${esc(selected.title_en)}」10 頁大綱生成</span>`;
+        updateStepper(3);
+        $('sec-3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        showToast('生成過程發生異常', `錯誤詳情：${err.message}。已為您自動載入標準架構。`, true);
+        state.slidesEN = buildOfflineTenSlides(selected, state.extracted);
+        renderOutline();
+        updateStepper(3);
+      } finally {
+        state.isGeneratingOutline = false;
+        $('outlineProgressPanel').classList.add('hidden');
+        $('btnRedoTopics').disabled = false;
+        document.querySelectorAll('.topic-card').forEach((c) => {
+          c.classList.remove('opacity-60');
+          c.style.pointerEvents = 'auto';
+        });
+      }
+    }
+
+    function renderOutline() {
+      const container = $('slidesContainer');
+      if (!state.slidesEN.length) return;
+
+      $('chosenTitleDisplay').textContent = state.chosenTopic ? state.chosenTopic.title_en : '10 頁簡報大綱';
+
+      state.outlineRaw = state.slidesEN.map((s) =>
+        `Slide ${s.n} — ${s.title}\n` +
+        (s.bullets || []).map((b) => `- ${b}`).join('\n') +
+        `\nVisual: ${s.visual}\nSpeaker Note: ${s.note}\nSource: ${s.source || 'Page 1'}`
+      ).join('\n\n');
+      $('rawOutlineText').value = state.outlineRaw;
+
+      container.innerHTML = state.slidesEN.map((s) => `
+        <div class="rounded-xl border border-slate-200 bg-white hover:border-blue-300 p-4 sm:p-5 transition-all">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <span class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-[#2563EB] border border-blue-200/80">
+                SLIDE ${String(s.n).padStart(2, '0')}
+              </span>
+              <h3 class="text-base font-bold text-slate-900">${esc(s.title)}</h3>
+            </div>
+            <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+              Source: ${esc(s.source || 'Page 1')}
+            </span>
+          </div>
+
+          <ul class="space-y-1.5 text-sm text-slate-700 pl-5 list-disc marker:text-[#2563EB]">
+            ${(s.bullets || []).map((b) => `<li>${esc(b)}</li>`).join('')}
+          </ul>
+
+          <div class="mt-3.5 pt-3 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+            <div class="rounded-lg bg-cyan-50/60 border border-cyan-100 px-3 py-2 text-cyan-950">
+              <strong class="font-mono text-[#0891B2]">VISUAL:</strong> ${esc(s.visual)}
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200/70 px-3 py-2 text-slate-700">
+              <strong class="font-mono text-slate-600">SPEAKER NOTE:</strong> ${esc(s.note)}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Step 3 Toolbar Actions
+    $('btnCopyOutline').addEventListener('click', async () => {
+      if (!state.outlineRaw) return;
+      await copyToClipboard(state.outlineRaw);
+      showToast('已複製 10 頁簡報大綱', '完整純文字大綱已複製到剪貼簿，可直接貼入 Canva 或文件。');
+    });
+
+    $('btnDlOutline').addEventListener('click', () => {
+      if (!state.outlineRaw) return;
+      const base = (state.product || 'Webinar').replace(/[^\w\-]+/g, '_').slice(0, 36);
+      const blob = new Blob([state.outlineRaw], { type: 'text/plain;charset=utf-8' });
+      triggerDownloadBlob(blob, `Webinar_${base}_Outline.txt`);
+    });
+
+    $('btnBackTopics').addEventListener('click', () => {
+      updateStepper(2);
+      $('sec-2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // =========================================================================
+    // STEP 4: TECHNICAL ENGLISH -> GERMAN (de-DE) TRANSLATOR & CANVA / PPTX
+    // =========================================================================
+    const DE_PHRASE_MAP = [
+      ['Webinar Agenda & Key Objectives', 'Webinar-Agenda & Hauptziele'],
+      ['Problem Background: Industrial System Constraints', 'Problemstellung: Anforderungen in Industriesystemen'],
+      ['Architecture & Core Highlights', 'Architektur & Kernmerkmale'],
+      ['Electrical Performance & Efficiency Profile', 'Elektrische Leistung & Effizienzprofil'],
+      ['Thermal Reliability & Global Certifications', 'Thermische Zuverlässigkeit & Globale Zertifizierungen'],
+      ['Target Applications & System Integration', 'Zielanwendungen & Systemintegration'],
+      ['Technical Specs & Selection Guide', 'Technische Daten & Auswahlhilfe'],
+      ['Key Engineering Takeaways', 'Wichtigste Erkenntnisse für Entwickler'],
+      ['Next Steps & Engineering Support (CTA)', 'Nächste Schritte & Technischer Support'],
+      ['Product Focus:', 'Produktfokus:'],
+      ['Strategy Angle:', 'Strategie-Fokus:'],
+      ['Engineering Briefing', 'Technisches Briefing'],
+      ['Target Audience: System Integrators, Hardware Engineers & Technical Buyers', 'Zielgruppe: Systemintegratoren, Hardware-Entwickler & Technische Einkäufer'],
+      ['Current industrial engineering bottlenecks and design constraints', 'Aktuelle industrielle Engpässe und Design-Anforderungen'],
+      ['architecture and verified datasheet performance', 'Architektur und verifizierte Datenblatt-Leistung'],
+      ['Target deployment scenarios and interface integration', 'Typische Einsatzszenarien und Schnittstellenintegration'],
+      ['Parameter selection checklist and live Q&A', 'Parameter-Auswahlcheckliste und Live-Fragerunde'],
+      ['Limited control cabinet space demanding compact hardware footprints', 'Begrenzter Schaltschrankplatz erfordert kompakte Bauformen'],
+      ['Thermal stress in unconditioned factory environments', 'Thermische Belastung in rauen Industrieumgebungen'],
+      ['Strict global safety and EMC compliance requirements', 'Strenge globale Sicherheits- und EMV-Anforderungen'],
+      ['Need for predictable uptime and diagnostic telemetry', 'Hohe Anlagenverfügbarkeit und Diagnosetelemetrie'],
+      ['Supported interfaces:', 'Unterstützte Schnittstellen:'],
+      ['Rated electrical profile:', 'Elektrische Nenndaten:'],
+      ['Operating range:', 'Betriebsbereich:'],
+      ['Conversion efficiency:', 'Wirkungsgrad:'],
+      ['Mechanical footprint:', 'Mechanische Abmessungen:'],
+      ['Voltage ratings:', 'Spannungswerte:'],
+      ['Power & current capacity:', 'Leistung & Strombelastbarkeit:'],
+      ['Stable output regulation under dynamic industrial load transients', 'Stabile Ausgangsregelung bei dynamischen industriellen Lastwechseln'],
+      ['Operating temperature:', 'Betriebstemperatur:'],
+      ['Physical dimensions & weight:', 'Abmessungen & Gewicht:'],
+      ['Certified standards:', 'Zertifizierte Normen:'],
+      ['Factory automation and programmable logic control cabinets', 'Fabrikautomation und SPS-Schaltschränke'],
+      ['Edge computing gateways and industrial telemetry nodes', 'Edge-Computing-Gateways und industrielle Telemetrieknoten'],
+      ['Connectivity integration via', 'Konnektivitätsintegration über'],
+      ['Simplified installation and predictive field maintenance', 'Vereinfachte Installation und vorausschauende Wartung'],
+      ['Verify load margin, ambient temperature, and interface requirements', 'Lastreserve, Umgebungstemperatur und Schnittstellen prüfen'],
+      ['Accelerates time-to-market with straightforward system integration', 'Verkürzt die Markteinführungszeit durch einfache Systemintegration'],
+      ['Download full', 'Vollständiges'],
+      ['datasheet and 3D CAD files', 'Datenblatt und 3D-CAD-Dateien herunterladen'],
+      ['Request evaluation samples for bench validation', 'Evaluierungsmuster für Labortests anfordern'],
+      ['Schedule a 1-on-1 architecture review with our FAE team', '1:1-Architekturberatung mit unserem FAE-Team vereinbaren'],
+      ['Solving Thermal & Space Limits with', 'Thermische & Platz-Limits lösen mit'],
+      ['Deploying', 'Einsatz von'],
+      ['in Smart Industrial Automation', 'in der intelligenten Industrieautomation'],
+      ['Engineering Selection &', 'Technische Auswahl &'],
+      ['Guide', 'Leitfaden']
+    ];
+
+    function translateTextToGerman(text) {
+      let out = String(text || '');
+      for (const [en, de] of DE_PHRASE_MAP) {
+        out = out.split(en).join(de);
+      }
+      return out;
+    }
+
+    function ensureGermanSlidesOffline() {
+      if (state.slidesDE) return state.slidesDE;
+      state.slidesDE = state.slidesEN.map((s) => ({
+        n: s.n,
+        title: translateTextToGerman(s.title),
+        bullets: (s.bullets || []).map((b) => translateTextToGerman(b)),
+        visual: 'Technische Darstellung: ' + s.visual,
+        note: `Technischer Hinweis zu "${translateTextToGerman(s.title)}": Alle Spezifikationen (${s.source || 'Datenblatt'}) entsprechen exakt den geprüften Herstellerangaben.`,
+        source: s.source
+      }));
+      return state.slidesDE;
+    }
+
+    // Step 4A: Canva Magic Design Sync
+    async function syncToCanva(lang) {
+      if (!state.slidesEN.length) return;
+      const slides = lang === 'DE' ? ensureGermanSlidesOffline() : state.slidesEN;
+      const langName = lang === 'DE' ? 'German (de-DE)' : 'English';
+
+      const deckBody = slides.map((s) =>
+        `Slide ${s.n}: ${s.title}\n${(s.bullets || []).map((b) => `- ${b}`).join('\n')}\nVisual: ${s.visual}`
+      ).join('\n\n');
+
+      const canvaPrompt = `Create a clean, modern, high-tech B2B industrial presentation (16:9) in ${langName} for "${state.product}" titled "${slides[0].title}". Keep all model numbers, electrical units, and standards exact:\n\n${deckBody}`;
+
+      await copyToClipboard(canvaPrompt);
+      $('canvaGuidePanel').classList.remove('hidden');
+      showToast(
+        `已複製 ${lang === 'DE' ? '德文版' : '英文版'} Canva 指令！`,
+        '在 Canva 首頁點擊「簡報 (16:9)」→「Magic Design」貼上即可一鍵生成。'
+      );
+      window.open('https://www.canva.com/create/presentations/', '_blank', 'noopener');
+    }
+
+    $('btnCanvaEN').addEventListener('click', () => syncToCanva('EN'));
+    $('btnCanvaDE').addEventListener('click', () => syncToCanva('DE'));
+
+    // Step 4B: Generate Editable PPTX (EN + DE)
+    function buildPptxBlob(slides, lang) {
+      const pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_16x9';
+      pptx.title = `${state.product || 'Webinar'} (${lang})`;
+
+      slides.forEach((s, idx) => {
+        const isCover = idx === 0;
+        const slide = pptx.addSlide();
+        const bullets = s.bullets || [];
+
+        if (isCover) {
+          slide.background = { color: '0F172A' };
+          slide.addShape(pptx.ShapeType.rect, { x: 0.7, y: 1.0, w: 1.2, h: 0.08, fill: { color: '0891B2' } });
+          slide.addText(s.title, {
+            x: 0.7, y: 1.3, w: 8.6, h: 1.8,
+            fontFace: 'Calibri', fontSize: 36, bold: true, color: 'FFFFFF', valign: 'top', fit: 'shrink'
+          });
+          slide.addText(bullets.join('\n'), {
+            x: 0.7, y: 3.3, w: 8.6, h: 1.6,
+            fontFace: 'Calibri', fontSize: 16, color: 'CBD5E1', valign: 'top', fit: 'shrink'
+          });
+        } else {
+          slide.background = { color: 'F8FAFC' };
+          slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 10, h: 0.08, fill: { color: '2563EB' } });
+          slide.addText(s.title, {
+            x: 0.6, y: 0.35, w: 8.8, h: 0.85,
+            fontFace: 'Calibri', fontSize: 26, bold: true, color: '0F172A', valign: 'middle', fit: 'shrink'
+          });
+          slide.addShape(pptx.ShapeType.roundRect, {
+            x: 0.6, y: 1.4, w: 5.3, h: 3.5,
+            fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 }
+          });
+          slide.addText(
+            bullets.map((b, k) => ({
+              text: b,
+              options: { bullet: true, breakLine: k < bullets.length - 1, paraSpaceAfter: 10 }
+            })),
+            {
+              x: 0.8, y: 1.6, w: 4.9, h: 3.1,
+              fontFace: 'Calibri', fontSize: 15, color: '1E293B', valign: 'top', fit: 'shrink'
+            }
+          );
+          slide.addText(
+            (lang === 'DE' ? 'Bildvorschlag:\n' : 'Visual Suggestion:\n') + (s.visual || ''),
+            {
+              x: 6.15, y: 1.4, w: 3.25, h: 3.5,
+              shape: pptx.ShapeType.roundRect,
+              fill: { color: 'EFF6FF' },
+              line: { color: '93C5FD', width: 1.2, dashType: 'dash' },
+              fontFace: 'Calibri', fontSize: 13, italic: true, color: '1E40AF',
+              align: 'center', valign: 'middle', margin: 12, fit: 'shrink'
+            }
+          );
+          slide.slideNumber = { x: 9.1, y: 5.2, color: '64748B', fontSize: 10 };
+        }
+
+        const noteText = (s.note || '') + (s.source ? `\n\nDatasheet Source: ${s.source}` : '');
+        slide.addNotes(noteText);
+      });
+
+      return pptx.write({ outputType: 'blob' });
+    }
+
+    $('btnGenPptx').addEventListener('click', async () => {
+      if (!state.slidesEN.length) return;
+      $('btnGenPptx').disabled = true;
+      $('statusPptx').innerHTML = '<span class="spinner"></span><span>正在產生英文與德文 16:9 可編輯 PPTX...</span>';
+
+      try {
+        const deSlides = ensureGermanSlidesOffline();
+        const [enBlob, deBlob] = await Promise.all([
+          buildPptxBlob(state.slidesEN, 'EN'),
+          buildPptxBlob(deSlides, 'DE')
+        ]);
+        state.pptxBlobs = { en: enBlob, de: deBlob };
+        $('pptxDownloadRow').classList.remove('hidden');
+        $('statusPptx').innerHTML = '<span class="text-emerald-600 font-semibold">✓ 英／德雙語可編輯 PPTX 已完成！</span>';
+        updateStepper(4);
+      } catch (err) {
+        $('statusPptx').innerHTML = `<span class="text-red-600">產生失敗：${esc(err.message)}</span>`;
+        showToast('PPTX 產生失敗', err.message, true);
+      } finally {
+        $('btnGenPptx').disabled = false;
+      }
+    });
+
+    $('btnDlPptxEN').addEventListener('click', () => {
+      if (!state.pptxBlobs) return;
+      const base = (state.product || 'Webinar').replace(/[^\w\-]+/g, '_').slice(0, 36);
+      triggerDownloadBlob(state.pptxBlobs.en, `Webinar_${base}_EN.pptx`);
+    });
+
+    $('btnDlPptxDE').addEventListener('click', () => {
+      if (!state.pptxBlobs) return;
+      const base = (state.product || 'Webinar').replace(/[^\w\-]+/g, '_').slice(0, 36);
+      triggerDownloadBlob(state.pptxBlobs.de, `Webinar_${base}_DE.pptx`);
+    });
+
+    // =========================================================================
+    // STEP 5: BILINGUAL NARRATION & SRT SUBTITLE GENERATOR
+    // =========================================================================
+    function formatTimecode(sec) {
+      const ms = Math.round(sec * 1000);
+      const pad = (n, len = 2) => String(n).padStart(len, '0');
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      const rem = ms % 1000;
+      return `${pad(h)}:${pad(m)}:${pad(s)},${pad(rem, 3)}`;
+    }
+
+    function wrapSubtitleLine(text, maxChars = 42) {
+      const lines = [];
+      let current = '';
+      for (const word of text.split(/\s+/).filter(Boolean)) {
+        if (current && (current + ' ' + word).length > maxChars) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = current ? current + ' ' + word : word;
+        }
+      }
+      if (current) lines.push(current);
+      return lines;
+    }
+
+    function splitIntoChunks(text) {
+      const cleaned = text.replace(/\s+/g, ' ').trim();
+      const sentences = cleaned.match(/[^.!?]+[.!?]*/g) || [cleaned];
+      const chunks = [];
+      for (const rawS of sentences) {
+        const s = rawS.trim();
+        if (!s) continue;
+        if (s.length <= 80) {
+          chunks.push(s);
+          continue;
+        }
+        let cur = '';
+        for (const w of s.split(' ')) {
+          if (cur && (cur + ' ' + w).length > 80) {
+            chunks.push(cur);
+            cur = w;
+          } else {
+            cur = cur ? cur + ' ' + w : w;
+          }
+        }
+        if (cur) chunks.push(cur);
+      }
+      return chunks;
+    }
+
+    function buildSrtContent(narrationList, wpm) {
+      let currentTime = 0.3;
+      let index = 1;
+      const blocks = [];
+
+      for (const item of narrationList) {
+        const chunks = splitIntoChunks(String(item.text || ''));
+        for (const chunk of chunks) {
+          const wordCount = chunk.split(/\s+/).filter(Boolean).length;
+          const duration = Math.max(1.3, wordCount / (wpm / 60));
+          const start = formatTimecode(currentTime);
+          const end = formatTimecode(currentTime + duration);
+          const wrapped = wrapSubtitleLine(chunk, 42).join('\n');
+          blocks.push(`${index}\n${start} --> ${end}\n${wrapped}`);
+          index++;
+          currentTime += duration;
+        }
+        currentTime += 0.6;
+      }
+      return blocks.join('\n\n') + '\n';
+    }
+
+    function buildOfflineNarration(slides, lang) {
+      const s = state.extracted || { product: state.product || 'Industrial Module' };
+      const shortModel = s.product.split(/\s+/)[0] || s.product;
+
+      if (lang === 'EN') {
+        return slides.map((sl) => {
+          if (sl.n === 1) {
+            return {
+              n: 1,
+              text: `Welcome to today's engineering webinar on ${s.product}. We will explore practical design strategies and verified specifications for your next industrial project.`
+            };
+          }
+          if (sl.n === 10) {
+            return {
+              n: 10,
+              text: `Thank you for attending. Download the complete ${shortModel} datasheet, request evaluation samples, or connect with our application engineering team to start your design-in.`
+            };
+          }
+          const bulletSentence = (sl.bullets || []).slice(0, 3).join('. ');
+          return {
+            n: sl.n,
+            text: `${sl.note} Specifically, key highlights include: ${bulletSentence}.`
+          };
+        });
+      }
+
+      return slides.map((sl) => {
+        if (sl.n === 1) {
+          return {
+            n: 1,
+            text: `Willkommen zu unserem heutigen technischen Webinar über ${s.product}. Wir zeigen Ihnen praxisnahe Designstrategien und geprüfte Datenblatt-Spezifikationen für Ihre Industrieprojekte.`
+          };
+        }
+        if (sl.n === 10) {
+          return {
+            n: 10,
+            text: `Vielen Dank für Ihre Teilnahme. Laden Sie jetzt das vollständige Datenblatt für ${shortModel} herunter, fordern Sie Evaluierungsmuster an oder kontaktieren Sie unser FAE-Team.`
+          };
+        }
+        const bulletSentence = (sl.bullets || []).slice(0, 3).join('. ');
+        return {
+          n: sl.n,
+          text: `Betrachten wir nun den Bereich ${sl.title}. Zu den wichtigsten technischen Merkmalen gehören: ${bulletSentence}.`
+        };
+      });
+    }
+
+    $('btnGenSrt').addEventListener('click', () => {
+      if (!state.slidesEN.length) return;
+      const wpm = Math.min(220, Math.max(90, Number($('wpmInput').value) || 140));
+      $('wpmInput').value = wpm;
+
+      const deSlides = ensureGermanSlidesOffline();
+      const narEN = buildOfflineNarration(state.slidesEN, 'EN');
+      const narDE = buildOfflineNarration(deSlides, 'DE');
+
+      const srtEN = buildSrtContent(narEN, wpm);
+      const srtDE = buildSrtContent(narDE, wpm);
+
+      state.srtData = { en: srtEN, de: srtDE };
+      $('srtTextEN').value = srtEN;
+      $('srtTextDE').value = srtDE;
+      $('srtResultArea').classList.remove('hidden');
+      $('statusSrt').innerHTML = `<span class="text-emerald-600 font-semibold">✓ 已依 ${wpm} WPM 語速生成英／德雙語 SRT 時間軸！</span>`;
+      updateStepper(5);
+    });
+
+    $('btnCopySrtEN').addEventListener('click', async () => {
+      if (!state.srtData) return;
+      await copyToClipboard(state.srtData.en);
+      showToast('已複製英文 SRT', '英文時間軸字幕已複製到剪貼簿。');
+    });
+
+    $('btnCopySrtDE').addEventListener('click', async () => {
+      if (!state.srtData) return;
+      await copyToClipboard(state.srtData.de);
+      showToast('已複製德文 SRT', '德文時間軸字幕已複製到剪貼簿。');
+    });
+
+    $('btnDlSrtZip').addEventListener('click', async () => {
+      if (!state.srtData || typeof JSZip === 'undefined') return;
+      const zip = new JSZip();
+      zip.file('webinar_narration_EN.srt', state.srtData.en);
+      zip.file('webinar_narration_DE.srt', state.srtData.de);
+      const blob = await zip.generateAsync({ type: 'blob' });
+      triggerDownloadBlob(blob, 'webinar_narration_srt.zip');
+    });
+
+    // Primary Wireups
+    $('btnGenTopics').addEventListener('click', generateTopicsOffline);
+    $('btnRedoTopics').addEventListener('click', generateTopicsOffline);
+  </script>
+</body>
+</html>
